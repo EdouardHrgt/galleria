@@ -29,6 +29,11 @@
   box-sizing: border-box;
 }
 
+a,
+button {
+  user-select: none;
+}
+
 /* 2. Remove default margin */
 * {
   margin: 0;
@@ -202,4 +207,3 @@ main {
     letter-spacing: 2px;
   }
 }
-

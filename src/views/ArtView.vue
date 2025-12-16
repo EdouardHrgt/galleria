@@ -1,81 +1,133 @@
 <script setup>
-import { useRoute } from 'vue-router'
-import { onMounted, ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { onMounted, ref, computed, watch } from 'vue'
 import { getStorage } from '../composables/useStorage'
 import Button from '@/components/Button.vue'
 import Header from '@/components/Header.vue'
 import Carousel from '@/components/Carousel.vue'
 
 const route = useRoute()
+const router = useRouter()
 const slug = computed(() => route.params.art)
 const art = ref(null)
 const carousel = ref(false)
+const allArts = ref([])
+const currentIndex = ref(0)
+const transitionName = ref('slide-left')
 
 onMounted(() => {
   const datas = getStorage('datas')
   if (datas) {
-    art.value = datas.find((item) => item.slug === slug.value)
+    allArts.value = datas
+    updateCurrentArt()
   }
+})
+
+const updateCurrentArt = () => {
+  const foundArt = allArts.value.find((item) => item.slug === slug.value)
+  if (foundArt) {
+    art.value = foundArt
+    currentIndex.value = allArts.value.findIndex((item) => item.slug === slug.value)
+  }
+}
+
+watch(slug, () => {
+  updateCurrentArt()
+})
+
+const progression = computed(() => {
+  if (allArts.value.length === 0) return 0
+  return ((currentIndex.value + 1) / allArts.value.length) * 100
 })
 
 const toggleCarousel = () => {
   carousel.value = !carousel.value
 }
+
+watch(carousel, (newValue) => {
+  if (newValue) {
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.body.style.overflow = ''
+  }
+})
+
+const switchArt = (direction) => {
+  if (allArts.value.length === 0) return
+
+  let newIndex
+
+  if (direction === 0) {
+    transitionName.value = 'slide-right'
+    newIndex = currentIndex.value === 0 ? allArts.value.length - 1 : currentIndex.value - 1
+  } else if (direction === 1) {
+    transitionName.value = 'slide-left'
+    newIndex = currentIndex.value === allArts.value.length - 1 ? 0 : currentIndex.value + 1
+  }
+
+  const newArt = allArts.value[newIndex]
+  router.push({ name: route.name, params: { art: newArt.slug } })
+}
 </script>
 
 <template>
   <Header />
+  <Transition name="carousel-scale">
+    <Carousel v-if="carousel" @close="toggleCarousel" :slug="slug" />
+  </Transition>
   <div class="page">
-    <Transition name="carousel-scale">
-      <Carousel v-if="carousel" @click="toggleCarousel" />
-    </Transition>
-    <main v-if="art" class="responsive-width">
-      <section class="images">
-        <picture>
-          <source media="(max-width: 768px)" :srcset="art.images.hero.small" />
-          <source media="(max-width: 1024px)" :srcset="art.images.hero.small" />
-          <img :src="art.images.hero.large" :alt="art.description" class="main-img" />
-          <div class="view">
-            <svg width="12" height="12" xmlns="http://www.w3.org/2000/svg">
-              <g fill="#FFF" fill-rule="nonzero">
-                <path
-                  d="M7.714 0l1.5 1.5-2.357 2.357 1.286 1.286L10.5 2.786l1.5 1.5V0zM3.857 6.857L1.5 9.214 0 7.714V12h4.286l-1.5-1.5 2.357-2.357zM8.143 6.857L6.857 8.143 9.214 10.5l-1.5 1.5H12V7.714l-1.5 1.5zM4.286 0H0v4.286l1.5-1.5 2.357 2.357 1.286-1.286L2.786 1.5z" />
-              </g>
-            </svg>
-            <p class="text-preset-7" @click="toggleCarousel">view image</p>
+    <Transition :name="transitionName" mode="out-in">
+      <main v-if="art" :key="art.slug" class="responsive-width">
+        <section class="images">
+          <picture>
+            <source media="(max-width: 768px)" :srcset="art.images.hero.small" />
+            <source media="(max-width: 1024px)" :srcset="art.images.hero.small" />
+            <img :src="art.images.hero.large" :alt="art.description" class="main-img" />
+            <div class="view">
+              <svg width="12" height="12" xmlns="http://www.w3.org/2000/svg">
+                <g fill="#FFF" fill-rule="nonzero">
+                  <path
+                    d="M7.714 0l1.5 1.5-2.357 2.357 1.286 1.286L10.5 2.786l1.5 1.5V0zM3.857 6.857L1.5 9.214 0 7.714V12h4.286l-1.5-1.5 2.357-2.357zM8.143 6.857L6.857 8.143 9.214 10.5l-1.5 1.5H12V7.714l-1.5 1.5zM4.286 0H0v4.286l1.5-1.5 2.357 2.357 1.286-1.286L2.786 1.5z" />
+                </g>
+              </svg>
+              <p class="text-preset-7" @click="toggleCarousel">view image</p>
+            </div>
+          </picture>
+
+          <img :src="art.artist.image" :alt="art.artist.name" class="portrait" />
+          <div class="name">
+            <h1 class="text-preset-2">{{ art.name }}</h1>
+            <p class="text-preset-4">{{ art.artist.name }}</p>
           </div>
-        </picture>
+        </section>
 
-        <img :src="art.artist.image" :alt="art.artist.name" class="portrait" />
-        <div class="name">
-          <h1 class="text-preset-2">{{ art.name }}</h1>
-          <p class="text-preset-4">{{ art.artist.name }}</p>
-        </div>
-      </section>
-
-      <section class="text">
-        <div class="description">
-          <p class="text-preset-3-bis desc-p">{{ art.description }}</p>
-          <p>
-            <strong class="text-preset-1">{{ art.year }}</strong>
-          </p>
-          <Button type="primary" label="go to source" />
-        </div>
-      </section>
-    </main>
+        <section class="text">
+          <div class="description">
+            <p class="text-preset-3-bis desc-p">{{ art.description }}</p>
+            <p>
+              <strong class="text-preset-1">{{ art.year }}</strong>
+            </p>
+            <Button type="primary" label="go to source" />
+          </div>
+        </section>
+      </main>
+    </Transition>
     <footer v-if="art" class="responsive-width">
+      <span class="progression">
+        <div :style="{ width: progression + '%' }"></div>
+      </span>
       <div class="detail">
         <p class="text-preset-3 | detail-name">{{ art.name }}</p>
         <p class="text-preset-5 | detail-artist">{{ art.artist.name }}</p>
       </div>
       <div class="pagination">
-        <svg width="26" height="24" xmlns="http://www.w3.org/2000/svg">
+        <svg width="26" height="24" xmlns="http://www.w3.org/2000/svg" @click="switchArt(0)">
           <g fill="none" fill-rule="evenodd">
             <path d="M24.166 1.843L3.627 12.113l20.539 10.269V1.843z" stroke-width="2" />
             <path fill="#D8D8D8" d="M.986.5h-1v22.775h1z" />
           </g>
         </svg>
-        <svg width="26" height="24" xmlns="http://www.w3.org/2000/svg">
+        <svg width="26" height="24" xmlns="http://www.w3.org/2000/svg" @click="switchArt(1)">
           <g fill="none" fill-rule="evenodd">
             <path d="M1.528 1.843l20.538 10.27L1.528 22.382V1.843z" stroke-width="2" />
             <path fill="#D8D8D8" d="M24.708.5h1v22.775h-1z" />
@@ -183,8 +235,24 @@ footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 2rem;
-  padding-block: var(--spacing-100);
+  margin-top: 5rem;
+  padding-top: 2rem;
+  position: relative;
+}
+
+footer .progression {
+  background-color: var(--grey-150);
+  position: absolute;
+  width: 100%;
+  height: 3px;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
+.progression div {
+  background-color: var(--grey-400);
+  height: inherit;
 }
 
 footer .detail-artist {
@@ -332,5 +400,42 @@ footer .pagination {
 .carousel-scale-leave-to {
   opacity: 0;
   transform: scale(0);
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: all 0.5s ease-in-out;
+}
+
+.slide-left-enter-from {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.slide-left-leave-to {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: all 0.5s ease-in-out;
+}
+
+.slide-right-enter-from {
+  transform: translateX(-100%);
+  opacity: 0;
+}
+
+.slide-right-leave-to {
+  transform: translateX(100%);
+  opacity: 0;
+}
+
+.slide-left-enter-active,
+.slide-left-leave-active,
+.slide-right-enter-active,
+.slide-right-leave-active {
+  position: relative;
 }
 </style>

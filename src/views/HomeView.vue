@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { saveStorage, getStorage } from '../composables/useStorage'
+import { getStorage } from '../composables/useStorage'
 import Header from '@/components/Header.vue'
 import Card from '@/components/Card.vue'
 const datas = ref(null)
